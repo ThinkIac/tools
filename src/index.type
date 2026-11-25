@@ -1,0 +1,54 @@
+{createBridge} = require './tools-bridge.cjs'
+{createRuntime} = require './legacy-tools.cjs'
+
+facade = (host) ->
+  workspace: host.workspace()
+  authority: host.tools.authority()
+  registry: host.registry
+  state: host.state
+  bus: {on: host.on, emit: host.emit, veto: host.veto, pipeline: host.pipeline}
+
+provideTools = (host) ->
+  ###
+  @register module tools
+  @accepts tool
+  @context capability
+  ###
+  legacy = createRuntime createBridge host
+  container = facade host
+  name: 'tools'
+  phase: 'wire'
+  api:
+    loadMcpTools: (workspace) -> legacy.loadMcpTools container, workspace
+    kernelTools: -> legacy.kernelTools container
+  install: ->
+    host.on 'logos:package:validating', ({pkg, result}) ->
+      runner = host.tools.isolatedRunner null, pkg.folder
+      tools = runner?.surfaces?.tools or await host.tools.scan pkg.folder
+      for tool in tools
+        schema = tool.parameters
+        unless schema and schema.type is 'object' and schema.properties and typeof schema.properties is 'object' and (schema.required is undefined or Array.isArray schema.required)
+          throw new TypeError "Tool #{tool.name ? '<unknown>'} must expose an object JSON schema"
+        host.tools.authority().enforce {principal: {kind: 'package', id: pkg.folder}, surface: 'tools', operation: 'provide', resource: "#{pkg.folder}.#{tool.name}"}
+      result.tools = tools.length
+    legacy.toolsModule.install container
+    host.on 'logos:package:staging', ({pkg, checks}) ->
+      expected = pkg.runtime?.stability?.tools
+      return unless expected
+      try
+        tools = await host.tools.scan pkg.folder
+        if expected is 'all'
+          checks.push {name: 'tools:all', ok: true, detail: "#{tools.length} tool(s) loaded"}
+        else if Array.isArray expected
+          names = new Set tools.map (tool) -> tool.name
+          missing = expected.filter (name) -> not names.has name
+          checks.push {name: 'tools:vital', ok: not missing.length, detail: if missing.length then "missing: #{missing.join(', ')}" else 'all vital tools present'}
+          throw new Error "vital tools missing: #{missing.join(', ')}" if missing.length
+      catch error
+        checks.push {name: 'tools:load', ok: false, detail: error.message}
+        throw error
+      return
+    return
+
+createHost = (args...) -> require('@thinkiac/module-runtime-compat').createHost args...
+module.exports = {provideTools, createHost, createRuntimeModule: provideTools}

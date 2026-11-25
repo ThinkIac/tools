@@ -1,0 +1,42 @@
+{
+  "name": "@thinkiac/module-tools",
+  "version": "0.1.0",
+  "description": "Logos tools capability in LogosType",
+  "main": "index.cjs",
+  "files": [
+    "index.cjs",
+    "src",
+    "dist",
+    "scripts",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "compat",
+    "legacy-tools.cjs",
+    "tools-bridge.cjs"
+  ],
+  "scripts": {
+    "build": "node scripts/build.cjs",
+    "prepare": "npm run build",
+    "test": "npm run build && node --test test/*.test.cjs",
+    "test:isolated": "node scripts/isolated.cjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "runtime": {
+    "role": "module",
+    "entry": "index.cjs"
+  },
+  "dependencies": {
+    "@thinkiac/module-runtime-compat": "git+https://github.com/ThinkIac/runtime-compat.git#cdc7111e66614bb1ed4a80901b3363587b3e6f0a"
+  },
+  "devDependencies": {
+    "logostype": "git+https://github.com/ThinkIac/LogosType.git#acdcc6032ab94219e0d4a4d25b1538fb55fa19cf"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ThinkIac/tools.git"
+  }
+}
